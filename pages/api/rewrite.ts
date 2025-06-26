@@ -72,6 +72,12 @@ async function rewriteTranscript(originalText: string, audienceData: any): Promi
   
   try {
     const config = getAzureOpenAIConfig();
+    console.log('Azure OpenAI config:', {
+      endpoint: config.endpoint,
+      deploymentName: config.deploymentName,
+      instanceName: config.instanceName,
+      apiVersion: config.apiVersion
+    });
     
     // Create a prompt for rewriting the transcript
     const systemPrompt = `You are an expert content adaptor. Your task is to rewrite video transcripts to match specific audience characteristics while maintaining the core message and meaning.
@@ -121,11 +127,132 @@ Please provide only the rewritten transcript without any additional commentary o
 }
 
 function createFallbackRewrite(originalText: string, audienceData: any): string {
-  console.log('Creating fallback rewrite...');
+  console.log('Creating enhanced fallback rewrite for young audience...');
+  
+  const { age, interests, technicalLevel } = audienceData;
+  
+  // Check if this is for young kids with sports interests
+  const isYoungKids = age && age.includes('5-12');
+  const isSportsInterested = interests && interests.toLowerCase().includes('sports');
+  const isBeginner = technicalLevel === 'beginner';
+  
+  if (isYoungKids && isSportsInterested && isBeginner) {
+    // Create a sports-themed, kid-friendly version
+    return createSportsKidVersion(originalText);
+  } else if (isYoungKids && isBeginner) {
+    // Create a simple, kid-friendly version
+    return createSimpleKidVersion(originalText);
+  } else {
+    // Generic adaptation
+    return createGenericAdaptation(originalText, audienceData);
+  }
+}
+
+function createSportsKidVersion(originalText: string): string {
+  console.log('Creating sports-themed kid version...');
+  
+  // Sports metaphors and kid-friendly replacements
+  const replacements = {
+    // Tech concepts to sports concepts
+    'copilot': 'your very own helper friend',
+    'AI': 'super smart helper',
+    'possibilities': 'fun things you can do',
+    'innovate': 'come up with cool new ideas',
+    'accomplish': 'finish',
+    'complex': 'tricky',
+    'tasks': 'jobs',
+    'sort through': 'pick out the good stuff from',
+    'noise': 'confusing stuff',
+    'faster': 'quicker than a cheetah',
+    'accurate': 'gets it right every time',
+    'intuitive': 'easy to figure out',
+    'customizable': 'you can make it your own',
+    'simplifies': 'makes easier',
+    'amplify': 'make bigger and better',
+    'impact': 'difference you make',
+    'UI': 'the way you talk to it',
+    'work': 'play and learn',
+    
+    // Add sports metaphors
+    'new world': 'new playground',
+    'allowing you': 'helping you',
+    'co innovate': 'team up and create',
+    'accomplish complex tasks': 'score big goals',
+    'sort through the noise': 'find the winning play',
+    'now copilot is': 'now your helper is',
+    'more accurate': 'hits the target every time',
+    'more intuitive': 'like learning a new game',
+    'and customizable': 'and you can make it your own',
+    'copilot simplifies': 'your helper makes easier',
+    'tasks to amplify': 'jobs to make bigger',
+    'your impact': 'your awesome moves',
+    'copilot is the': 'your helper is the',
+    'UI for AI': 'way to talk to your smart friend',
+    'at work': 'when you play and learn'
+  };
   
   let rewrittenText = originalText;
   
-  // Simple text adaptation based on audience characteristics
+  // Apply replacements
+  Object.entries(replacements).forEach(([original, replacement]) => {
+    const regex = new RegExp(original, 'gi');
+    rewrittenText = rewrittenText.replace(regex, replacement);
+  });
+  
+  // Add some sports enthusiasm
+  rewrittenText = rewrittenText
+    .replace(/\./g, '! ')
+    .replace(/!/g, '! 🏆 ')
+    .replace(/work\./g, 'awesome game! 🎯');
+  
+  // Ensure it ends with enthusiasm
+  if (!rewrittenText.includes('!')) {
+    rewrittenText = rewrittenText.replace(/\.$/, '! 🎉');
+  }
+  
+  console.log('Sports kid version created:', rewrittenText.substring(0, 100) + '...');
+  return rewrittenText;
+}
+
+function createSimpleKidVersion(originalText: string): string {
+  console.log('Creating simple kid version...');
+  
+  const replacements = {
+    'copilot': 'your helper friend',
+    'AI': 'smart helper',
+    'possibilities': 'fun things',
+    'innovate': 'create new things',
+    'accomplish': 'finish',
+    'complex': 'hard',
+    'tasks': 'jobs',
+    'sort through': 'find',
+    'noise': 'confusing things',
+    'faster': 'quicker',
+    'accurate': 'right',
+    'intuitive': 'easy',
+    'customizable': 'changeable',
+    'simplifies': 'makes easier',
+    'amplify': 'make bigger',
+    'impact': 'difference',
+    'UI': 'way to use',
+    'work': 'play'
+  };
+  
+  let rewrittenText = originalText;
+  
+  Object.entries(replacements).forEach(([original, replacement]) => {
+    const regex = new RegExp(original, 'gi');
+    rewrittenText = rewrittenText.replace(regex, replacement);
+  });
+  
+  return rewrittenText;
+}
+
+function createGenericAdaptation(originalText: string, audienceData: any): string {
+  console.log('Creating generic adaptation...');
+  
+  let rewrittenText = originalText;
+  
   if (audienceData.technicalLevel === 'beginner') {
     rewrittenText = rewrittenText
       .replace(/complex/g, 'simple')

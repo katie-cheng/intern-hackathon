@@ -3,6 +3,10 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
 
 // Configure multer for handling multipart form data
 const upload = multer({
@@ -112,20 +116,24 @@ async function startProcessing(videoId: string, audienceData: any) {
     console.log('Step 1: Starting transcription...');
     await transcribeVideo(videoId);
     
-    // Step 2: Parse audience data
-    console.log('Step 2: Parsing audience data...');
+    // Step 2: Segment the video
+    console.log('Step 2: Segmenting video...');
+    await segmentVideo(videoId);
+    
+    // Step 3: Parse audience data
+    console.log('Step 3: Parsing audience data...');
     await parseAudience(videoId, audienceData);
     
-    // Step 3: Rewrite transcript
-    console.log('Step 3: Rewriting transcript...');
+    // Step 4: Rewrite transcript
+    console.log('Step 4: Rewriting transcript...');
     await rewriteTranscript(videoId);
     
-    // Step 4: Generate TTS
-    console.log('Step 4: Generating TTS...');
+    // Step 5: Generate TTS
+    console.log('Step 5: Generating TTS...');
     await generateTTS(videoId);
     
-    // Step 5: Generate adapted video
-    console.log('Step 5: Generating adapted video...');
+    // Step 6: Generate adapted video
+    console.log('Step 6: Generating adapted video...');
     await generateAdaptedVideo(videoId);
     
     console.log('=== PROCESSING PIPELINE COMPLETED ===');
@@ -138,7 +146,7 @@ async function startProcessing(videoId: string, audienceData: any) {
 async function transcribeVideo(videoId: string) {
   console.log(`Transcribing video ${videoId}...`);
   // Call the transcribe API
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'}/api/transcribe`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/transcribe`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ videoId })
@@ -152,10 +160,27 @@ async function transcribeVideo(videoId: string) {
   console.log('✓ Transcription completed');
 }
 
+async function segmentVideo(videoId: string) {
+  console.log(`Segmenting video ${videoId}...`);
+  // Call the segment-video API
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/segment-video`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ videoId, maxSegmentDuration: 10 })
+  });
+  
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Video segmentation failed: ${error}`);
+  }
+  
+  console.log('✓ Video segmentation completed');
+}
+
 async function parseAudience(videoId: string, audienceData: any) {
   console.log(`Parsing audience for video ${videoId}...`);
   // Call the parse-audience API
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'}/api/parse-audience`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/parse-audience`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ videoId, audience: audienceData })
@@ -172,7 +197,7 @@ async function parseAudience(videoId: string, audienceData: any) {
 async function rewriteTranscript(videoId: string) {
   console.log(`Rewriting transcript for video ${videoId}...`);
   // Call the rewrite API
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'}/api/rewrite`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/rewrite`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ videoId })
@@ -189,7 +214,7 @@ async function rewriteTranscript(videoId: string) {
 async function generateTTS(videoId: string) {
   console.log(`Generating TTS for video ${videoId}...`);
   // Call the TTS API
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'}/api/tts`, {
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/tts`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ videoId })
@@ -204,9 +229,9 @@ async function generateTTS(videoId: string) {
 }
 
 async function generateAdaptedVideo(videoId: string) {
-  console.log(`Generating adapted video for video ${videoId}...`);
-  // Call the generate API
-  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3002'}/api/generate`, {
+  console.log(`Generating adapted video for ${videoId}...`);
+  // Call the video generation API
+  const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/video`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ videoId })
@@ -217,5 +242,5 @@ async function generateAdaptedVideo(videoId: string) {
     throw new Error(`Video generation failed: ${error}`);
   }
   
-  console.log('✓ Adapted video generation completed');
+  console.log('✓ Video generation completed');
 } 

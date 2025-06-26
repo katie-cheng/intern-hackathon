@@ -1,6 +1,10 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { readFile, writeFile } from 'fs/promises';
 import { join } from 'path';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
 
 export default async function handler(
   req: NextApiRequest,
@@ -66,22 +70,112 @@ async function generateSpeech(text: string, audienceData: any): Promise<Buffer> 
   const speechRegion = process.env.AZURE_SPEECH_REGION;
   
   if (!speechKey || !speechRegion) {
-    console.warn('Azure Speech credentials not found, using fallback audio generation');
-    return generateFallbackAudio(text, audienceData);
+    console.error('Azure Speech credentials not found!');
+    throw new Error('AZURE_SPEECH_KEY and AZURE_SPEECH_REGION must be set in .env.local for real speech synthesis');
   }
 
   try {
-    // For now, we'll use a fallback approach since Azure TTS requires more setup
-    // In a full implementation, you would:
-    // 1. Use Azure Speech SDK to generate speech
-    // 2. Return the audio buffer
-    console.log('Azure Speech credentials found, but using fallback for now');
-    return generateFallbackAudio(text, audienceData);
+    console.log('Using Azure Text-to-Speech...');
+    return await callAzureTTSService(text, audienceData, speechKey, speechRegion);
     
   } catch (error) {
     console.error('Azure Speech synthesis error:', error);
-    console.log('Using fallback audio generation');
+    console.log('Using fallback TTS generation...');
     return generateFallbackAudio(text, audienceData);
+  }
+}
+
+async function callAzureTTSService(text: string, audienceData: any, speechKey: string, speechRegion: string): Promise<Buffer> {
+  console.log('Calling Azure TTS service...');
+  
+  // Choose appropriate voice based on audience
+  const voiceSettings = getVoiceSettings(audienceData);
+  console.log('Voice settings:', voiceSettings);
+  
+  // Azure TTS REST API endpoint
+  const url = `https://${speechRegion}.tts.speech.microsoft.com/cognitiveservices/v1`;
+  console.log('TTS API URL:', url);
+  
+  // Simplified SSML without prosody to avoid potential issues
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
+  <voice name="${voiceSettings.voice}">
+    ${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+  </voice>
+</speak>`;
+  
+  console.log('SSML content:', ssml);
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': speechKey,
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'riff-16khz-16bit-mono-pcm',
+        'User-Agent': 'VideoAdaptationApp'
+      },
+      body: ssml
+    });
+
+    console.log('TTS API response status:', response.status);
+    console.log('TTS API response headers:', Object.fromEntries(response.headers.entries()));
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('TTS API error response:', errorText);
+      
+      // Try with a different voice if the first one fails
+      console.log('Trying with fallback voice...');
+      return await callAzureTTSServiceWithFallback(text, speechKey, speechRegion);
+    }
+
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    console.log(`Azure TTS generated audio: ${audioBuffer.length} bytes`);
+    return audioBuffer;
+  } catch (error) {
+    console.error('TTS API call failed:', error);
+    throw error;
+  }
+}
+
+async function callAzureTTSServiceWithFallback(text: string, speechKey: string, speechRegion: string): Promise<Buffer> {
+  console.log('Trying Azure TTS with fallback voice...');
+  
+  // Use a very basic, reliable voice
+  const fallbackVoice = 'en-US-JennyNeural';
+  const url = `https://${speechRegion}.tts.speech.microsoft.com/cognitiveservices/v1`;
+  
+  // Even simpler SSML
+  const ssml = `<speak version="1.0" xmlns="http://www.w3.org/2001/10/synthesis" xml:lang="en-US">
+  <voice name="${fallbackVoice}">
+    ${text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+  </voice>
+</speak>`;
+  
+  try {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Ocp-Apim-Subscription-Key': speechKey,
+        'Content-Type': 'application/ssml+xml',
+        'X-Microsoft-OutputFormat': 'riff-16khz-16bit-mono-pcm',
+        'User-Agent': 'VideoAdaptationApp'
+      },
+      body: ssml
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Fallback TTS also failed:', errorText);
+      throw new Error(`Azure TTS fallback failed: ${response.status} ${errorText}`);
+    }
+
+    const audioBuffer = Buffer.from(await response.arrayBuffer());
+    console.log(`Fallback TTS generated audio: ${audioBuffer.length} bytes`);
+    return audioBuffer;
+  } catch (error) {
+    console.error('Fallback TTS call failed:', error);
+    throw error;
   }
 }
 
@@ -148,24 +242,53 @@ function createWavHeader(dataSize: number, sampleRate: number, channels: number,
 }
 
 function getVoiceSettings(audienceData: any) {
-  const { languageCode, targetAgeGroup, complexityLevel } = audienceData;
+  const { age, language, technicalLevel } = audienceData;
   
-  // Map audience characteristics to voice settings
+  // Map audience characteristics to Azure TTS voice settings
   const voiceMap: { [key: string]: any } = {
-    'en-US': {
-      children: { voice: 'en-US-JennyNeural', rate: 0.9, pitch: 1.1 },
-      teenagers: { voice: 'en-US-JennyNeural', rate: 1.0, pitch: 1.0 },
-      adults: { voice: 'en-US-GuyNeural', rate: 1.0, pitch: 1.0 },
-      seniors: { voice: 'en-US-GuyNeural', rate: 0.85, pitch: 0.95 }
+    'children': {
+      voice: 'en-US-JennyNeural',
+      gender: 'Female',
+      rate: '0.9',
+      pitch: '1.1'
     },
-    'es-ES': {
-      children: { voice: 'es-ES-ElviraNeural', rate: 0.9, pitch: 1.1 },
-      teenagers: { voice: 'es-ES-ElviraNeural', rate: 1.0, pitch: 1.0 },
-      adults: { voice: 'es-ES-AlvaroNeural', rate: 1.0, pitch: 1.0 },
-      seniors: { voice: 'es-ES-AlvaroNeural', rate: 0.85, pitch: 0.95 }
+    'teenagers': {
+      voice: 'en-US-JennyNeural',
+      gender: 'Female', 
+      rate: '1.0',
+      pitch: '1.0'
+    },
+    'adults': {
+      voice: 'en-US-GuyNeural',
+      gender: 'Male',
+      rate: '1.0',
+      pitch: '1.0'
+    },
+    'seniors': {
+      voice: 'en-US-GuyNeural',
+      gender: 'Male',
+      rate: '0.85',
+      pitch: '0.95'
     }
   };
   
-  const languageVoices = voiceMap[languageCode] || voiceMap['en-US'];
-  return languageVoices[targetAgeGroup] || languageVoices.adults;
+  // Determine age group
+  let ageGroup = 'adults';
+  if (age && age.includes('5-12')) {
+    ageGroup = 'children';
+  } else if (age && age.includes('13-17')) {
+    ageGroup = 'teenagers';
+  } else if (age && age.includes('65+')) {
+    ageGroup = 'seniors';
+  }
+  
+  // Adjust for technical level
+  const baseVoice = voiceMap[ageGroup] || voiceMap.adults;
+  if (technicalLevel === 'beginner') {
+    baseVoice.rate = '0.9'; // Slower for beginners
+  } else if (technicalLevel === 'advanced') {
+    baseVoice.rate = '1.1'; // Faster for advanced
+  }
+  
+  return baseVoice;
 } 

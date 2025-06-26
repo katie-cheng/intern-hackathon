@@ -1,4 +1,8 @@
 // Azure OpenAI configuration and utilities
+import dotenv from 'dotenv';
+
+// Load environment variables from .env.local
+dotenv.config({ path: '.env.local' });
 
 export interface AzureOpenAIConfig {
   apiKey: string;

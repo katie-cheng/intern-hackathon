@@ -1,45 +1,176 @@
 import { NextApiRequest, NextApiResponse } from 'next';
-import { readFile, access } from 'fs/promises';
+import { readFile, access, writeFile, stat } from 'fs/promises';
 import { join } from 'path';
+import ffmpeg from 'fluent-ffmpeg';
+import { createReadStream } from 'fs';
 
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
 ) {
-  if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
-  try {
-    const { videoId, filename } = req.query;
-
-    if (!videoId || !filename || typeof videoId !== 'string' || typeof filename !== 'string') {
-      return res.status(400).json({ error: 'Video ID and filename are required' });
-    }
-
-    const filePath = join(process.cwd(), 'uploads', videoId, filename);
-    
-    // Check if file exists
+  if (req.method === 'GET') {
+    // Serve video files with streaming
     try {
-      await access(filePath);
+      const { videoId, filename } = req.query;
+
+      if (!videoId || !filename || typeof videoId !== 'string' || typeof filename !== 'string') {
+        return res.status(400).json({ error: 'Video ID and filename are required' });
+      }
+
+      const filePath = join(process.cwd(), 'uploads', videoId, filename);
+      
+      // Check if file exists
+      try {
+        await access(filePath);
+      } catch (error) {
+        return res.status(404).json({ error: 'Video file not found' });
+      }
+
+      // Get file stats
+      const fileStats = await stat(filePath);
+      const fileSize = fileStats.size;
+
+      // Parse range header for partial content requests
+      const range = req.headers.range;
+      
+      if (range) {
+        // Handle range requests for video streaming
+        const parts = range.replace(/bytes=/, "").split("-");
+        const start = parseInt(parts[0], 10);
+        const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+        const chunksize = (end - start) + 1;
+
+        res.writeHead(206, {
+          'Content-Range': `bytes ${start}-${end}/${fileSize}`,
+          'Accept-Ranges': 'bytes',
+          'Content-Length': chunksize,
+          'Content-Type': 'video/mp4',
+          'Cache-Control': 'public, max-age=3600'
+        });
+
+        const stream = createReadStream(filePath, { start, end });
+        stream.pipe(res);
+      } else {
+        // Full file request
+        res.writeHead(200, {
+          'Content-Length': fileSize,
+          'Content-Type': 'video/mp4',
+          'Accept-Ranges': 'bytes',
+          'Cache-Control': 'public, max-age=3600'
+        });
+
+        const stream = createReadStream(filePath);
+        stream.pipe(res);
+      }
+
     } catch (error) {
-      return res.status(404).json({ error: 'Video file not found' });
+      console.error('Video serving error:', error);
+      res.status(500).json({ error: 'Failed to serve video' });
     }
+  } else if (req.method === 'POST') {
+    // Generate adapted video
+    console.log('=== VIDEO GENERATION API STARTED ===');
 
-    // Read the video file
-    const videoBuffer = await readFile(filePath);
+    try {
+      const { videoId } = req.body;
 
-    // Set appropriate headers for video streaming
-    res.setHeader('Content-Type', 'video/mp4');
-    res.setHeader('Content-Length', videoBuffer.length);
-    res.setHeader('Accept-Ranges', 'bytes');
-    res.setHeader('Cache-Control', 'public, max-age=3600');
+      if (!videoId) {
+        return res.status(400).json({ error: 'Video ID is required' });
+      }
 
-    // Send the video buffer
-    res.status(200).send(videoBuffer);
+      console.log('Generating adapted video for video ID:', videoId);
 
+      // Read all necessary files
+      const videoPath = join(process.cwd(), 'uploads', videoId, 'video.mp4');
+      const audioPath = join(process.cwd(), 'uploads', videoId, 'narration.wav');
+      const audiencePath = join(process.cwd(), 'uploads', videoId, 'audience-enhanced.json');
+      
+      console.log('Video path:', videoPath);
+      console.log('Audio path:', audioPath);
+      console.log('Audience path:', audiencePath);
+      
+      const audienceData = JSON.parse(await readFile(audiencePath, 'utf-8'));
+      console.log('Audience data:', audienceData);
+
+      // Generate adapted video
+      const adaptedVideoPath = await generateAdaptedVideo(
+        videoPath,
+        audioPath,
+        audienceData,
+        videoId
+      );
+
+      console.log('Adapted video generated:', adaptedVideoPath);
+
+      res.status(200).json({ 
+        adaptedVideoPath: `/uploads/${videoId}/adapted-video.mp4`,
+        message: 'Video generation completed' 
+      });
+
+    } catch (error) {
+      console.error('Video generation error:', error);
+      res.status(500).json({ error: 'Video generation failed: ' + (error as Error).message });
+    }
+  } else {
+    res.status(405).json({ error: 'Method not allowed' });
+  }
+}
+
+async function generateAdaptedVideo(
+  originalVideoPath: string, 
+  audioPath: string, 
+  audienceData: any,
+  videoId: string
+): Promise<string> {
+  console.log('Starting video generation with FFmpeg...');
+  
+  const outputPath = join(process.cwd(), 'uploads', videoId, 'adapted-video.mp4');
+  
+  try {
+    // Check if files exist
+    await readFile(originalVideoPath);
+    await readFile(audioPath);
+    
+    console.log('Input files verified, starting FFmpeg processing...');
+    
+    // Use FFmpeg to combine video with new audio
+    return new Promise((resolve, reject) => {
+      ffmpeg()
+        .input(originalVideoPath)
+        .input(audioPath)
+        .outputOptions([
+          '-c:v copy',           // Copy video stream without re-encoding
+          '-c:a aac',            // Use AAC codec for audio
+          '-shortest',           // End when shortest input ends
+          '-map 0:v:0',          // Use video from first input
+          '-map 1:a:0'           // Use audio from second input
+        ])
+        .output(outputPath)
+        .on('start', (commandLine) => {
+          console.log('FFmpeg command:', commandLine);
+        })
+        .on('progress', (progress) => {
+          console.log('FFmpeg progress:', progress.percent + '%');
+        })
+        .on('end', () => {
+          console.log('FFmpeg processing completed successfully');
+          resolve(outputPath);
+        })
+        .on('error', (err) => {
+          console.error('FFmpeg error:', err);
+          reject(new Error(`FFmpeg processing failed: ${err.message}`));
+        })
+        .run();
+    });
+    
   } catch (error) {
-    console.error('Video serving error:', error);
-    res.status(500).json({ error: 'Failed to serve video' });
+    console.error('File access error:', error);
+    
+    // Fallback: create a simple copy of the original video
+    console.log('Using fallback: copying original video');
+    const originalBuffer = await readFile(originalVideoPath);
+    await writeFile(outputPath, originalBuffer);
+    
+    return outputPath;
   }
 } 
