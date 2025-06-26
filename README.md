@@ -1,6 +1,6 @@
 # Video Adaptation Platform
 
-Adapt videos to any audience using AI-powered transcription, rewriting, and video generation.
+Adapt videos to any audience using AI-powered transcription, rewriting, and video generation. Used for marketing to different audiences based on age, technical expertise, language, and more.
 
 ## 🚀 Quick Start
 
