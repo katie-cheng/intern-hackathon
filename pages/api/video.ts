@@ -7,7 +7,6 @@ import { createReadStream } from 'fs';
 // Configuration for background music feature
 const INCLUDE_BACKGROUND_MUSIC = true; // Toggle this to enable/disable background music
 const BACKGROUND_MUSIC_PATH = join(process.cwd(), 'assets', 'inspirational.mp3'); // User's uploaded inspirational music
-const DEMO_VIDEO_PATH = join(process.cwd(), 'assets', 'majoranaminecraft.mp4'); // Hardcoded demo video for visuals
 
 export default async function handler(
   req: NextApiRequest,
@@ -133,11 +132,11 @@ async function generateAdaptedVideo(
   
   try {
     // Check if files exist
+    await readFile(originalVideoPath);
     await readFile(audioPath);
-    await readFile(DEMO_VIDEO_PATH);
     
     console.log('Input files verified, starting FFmpeg processing...');
-    console.log('Using hardcoded demo video for visuals:', DEMO_VIDEO_PATH);
+    console.log('Using original uploaded video for visuals:', originalVideoPath);
     
     // Check if user wants background music and if file exists
     let includeMusic = audienceData.includeBackgroundMusic || INCLUDE_BACKGROUND_MUSIC;
@@ -154,10 +153,10 @@ async function generateAdaptedVideo(
       console.log('Background music disabled by user preference');
     }
     
-    // Use FFmpeg to combine demo video with new audio and optional background music
+    // Use FFmpeg to combine original video with new audio and optional background music
     return new Promise((resolve, reject) => {
       const ffmpegCommand = ffmpeg()
-        .input(DEMO_VIDEO_PATH)  // Use hardcoded demo video for visuals
+        .input(originalVideoPath)  // Use original uploaded video for visuals
         .input(audioPath);
       
       if (includeMusic) {
@@ -170,7 +169,7 @@ async function generateAdaptedVideo(
           '-c:v copy',           // Copy video stream without re-encoding
           '-c:a aac',            // Use AAC codec for audio
           '-shortest',           // End when shortest input ends
-          '-map 0:v:0'           // Use video from first input (demo video)
+          '-map 0:v:0'           // Use video from first input (original video)
         ]);
       
       if (includeMusic) {
@@ -207,12 +206,6 @@ async function generateAdaptedVideo(
     
   } catch (error) {
     console.error('File access error:', error);
-    
-    // Fallback: create a simple copy of the demo video
-    console.log('Using fallback: copying demo video');
-    const demoBuffer = await readFile(DEMO_VIDEO_PATH);
-    await writeFile(outputPath, demoBuffer);
-    
-    return outputPath;
+    throw new Error(`Failed to access input files: ${(error as Error).message}`);
   }
 } 
