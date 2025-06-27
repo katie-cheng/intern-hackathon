@@ -55,7 +55,7 @@ export default function TestPipeline() {
 
   const viewResult = () => {
     if (videoId) {
-      window.open(`/compare?id=${videoId}`, '_blank');
+      window.open(`/compare/${videoId}`, '_blank');
     }
   };
 

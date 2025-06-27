@@ -45,31 +45,31 @@ export const TranscriptDiff: React.FC<TranscriptDiffProps> = ({
     if (!showDiff) return null;
 
     return (
-      <div className="bg-gray-50 p-4 rounded-md text-sm">
-        <h4 className="font-medium text-gray-900 mb-2">Changes Highlighted:</h4>
+      <div className="backdrop-blur-xl bg-white/10 border border-white/20 p-4 rounded-xl text-sm">
+        <h4 className="font-medium text-blue-100 mb-3">Changes Highlighted:</h4>
         <div className="space-y-1">
           {diffWords.map((item, index) => (
             <span
               key={index}
               className={`inline-block mr-1 px-1 rounded ${
                 item.type === 'added'
-                  ? 'bg-green-100 text-green-800'
+                  ? 'bg-green-500/20 text-green-300 border border-green-500/30'
                   : item.type === 'removed'
-                  ? 'bg-red-100 text-red-800 line-through'
-                  : 'text-gray-700'
+                  ? 'bg-red-500/20 text-red-300 border border-red-500/30 line-through'
+                  : 'text-blue-200'
               }`}
             >
               {item.word}
             </span>
           ))}
         </div>
-        <div className="mt-3 text-xs text-gray-500">
-          <span className="inline-block mr-4">
-            <span className="inline-block w-3 h-3 bg-green-100 text-green-800 mr-1">●</span>
+        <div className="mt-4 text-xs text-blue-200/80">
+          <span className="inline-block mr-6">
+            <span className="inline-block w-3 h-3 bg-green-500/20 text-green-300 mr-2 border border-green-500/30 rounded">●</span>
             Added
           </span>
           <span className="inline-block">
-            <span className="inline-block w-3 h-3 bg-red-100 text-red-800 mr-1">●</span>
+            <span className="inline-block w-3 h-3 bg-red-500/20 text-red-300 mr-2 border border-red-500/30 rounded">●</span>
             Removed
           </span>
         </div>
@@ -78,34 +78,34 @@ export const TranscriptDiff: React.FC<TranscriptDiffProps> = ({
   };
 
   const renderTranscript = (text: string, title: string) => (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h4 className="font-medium text-gray-900">{title}</h4>
-        <div className="flex items-center space-x-2">
+        <h4 className="font-medium text-blue-100">{title}</h4>
+        <div className="flex items-center space-x-3">
           <button
             onClick={() => setShowDiff(!showDiff)}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${
+            className={`px-4 py-2 text-xs rounded-xl transition-all duration-200 ${
               showDiff
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg'
+                : 'bg-white/10 text-blue-200 hover:bg-white/20 border border-white/20'
             }`}
           >
             {showDiff ? 'Hide Diff' : 'Show Diff'}
           </button>
           <button
             onClick={() => navigator.clipboard.writeText(text)}
-            className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors"
+            className="px-4 py-2 text-xs bg-white/10 text-blue-200 rounded-xl hover:bg-white/20 transition-all duration-200 border border-white/20"
           >
             Copy
           </button>
         </div>
       </div>
       
-      <div className="bg-white border border-gray-200 rounded-md p-4 max-h-64 overflow-y-auto">
-        <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">{text}</p>
+      <div className="backdrop-blur-xl bg-white/10 border border-white/20 rounded-xl p-4 max-h-64 overflow-y-auto">
+        <p className="text-blue-100 leading-relaxed whitespace-pre-wrap">{text}</p>
       </div>
       
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-blue-200/60">
         <span>Word count: {text.split(' ').length}</span>
         <span className="mx-2">•</span>
         <span>Character count: {text.length}</span>
@@ -114,20 +114,20 @@ export const TranscriptDiff: React.FC<TranscriptDiffProps> = ({
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {activeTab === 'original' && renderTranscript(original, 'Original Transcript')}
       {activeTab === 'adapted' && renderTranscript(adapted, 'Adapted Transcript')}
       
       {showDiff && renderDiffText()}
       
       {activeTab === 'adapted' && (
-        <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-          <h4 className="text-sm font-medium text-blue-900 mb-2">Adaptation Summary</h4>
-          <div className="text-sm text-blue-800 space-y-1">
+        <div className="backdrop-blur-xl bg-gradient-to-r from-blue-500/10 to-cyan-500/10 border border-blue-500/30 rounded-xl p-4">
+          <h4 className="text-sm font-medium text-blue-100 mb-3">Adaptation Summary</h4>
+          <div className="text-sm text-blue-200/80 space-y-2">
             <p><strong>Original length:</strong> {original.split(' ').length} words</p>
             <p><strong>Adapted length:</strong> {adapted.split(' ').length} words</p>
-            <p><strong>Change:</strong> {adapted.split(' ').length - original.split(' ').length > 0 ? '+' : ''}{adapted.split(' ').length - original.split(' ').length} words</p>
-            <p><strong>Similarity:</strong> {calculateSimilarity(original, adapted).toFixed(1)}%</p>
+            <p><strong>Change:</strong> <span className="text-cyan-300">{adapted.split(' ').length - original.split(' ').length > 0 ? '+' : ''}{adapted.split(' ').length - original.split(' ').length} words</span></p>
+            <p><strong>Similarity:</strong> <span className="text-cyan-300">{calculateSimilarity(original, adapted).toFixed(1)}%</span></p>
           </div>
         </div>
       )}

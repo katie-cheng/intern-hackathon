@@ -1,127 +1,59 @@
-import React, { useState, useRef } from 'react';
+import React, { useCallback } from 'react';
+import { useDropzone } from 'react-dropzone';
 
 interface UploadBoxProps {
   onFileSelect: (file: File) => void;
 }
 
 export const UploadBox: React.FC<UploadBoxProps> = ({ onFileSelect }) => {
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileSelect = (file: File) => {
-    if (file.type.startsWith('video/')) {
-      setSelectedFile(file);
-      onFileSelect(file);
-    } else {
-      alert('Please select a valid video file');
+  const onDrop = useCallback((acceptedFiles: File[]) => {
+    if (acceptedFiles.length > 0) {
+      onFileSelect(acceptedFiles[0]);
     }
-  };
+  }, [onFileSelect]);
 
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragOver(false);
-    
-    const files = Array.from(e.dataTransfer.files);
-    if (files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      handleFileSelect(files[0]);
-    }
-  };
-
-  const handleClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const formatFileSize = (bytes: number): string => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  };
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      'video/*': ['.mp4', '.mov', '.avi', '.mkv', '.webm']
+    },
+    multiple: false
+  });
 
   return (
-    <div className="w-full">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
-        Upload Video
-      </label>
+    <div className="space-y-4">
+      <h3 className="text-xl font-semibold text-blue-100">Upload Video</h3>
       
       <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-          isDragOver
-            ? 'border-blue-500 bg-blue-50'
-            : selectedFile
-            ? 'border-green-500 bg-green-50'
-            : 'border-gray-300 hover:border-gray-400'
+        {...getRootProps()}
+        className={`backdrop-blur-md border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all duration-200 ${
+          isDragActive
+            ? 'border-blue-400 bg-blue-500/20'
+            : 'border-blue-300/50 bg-white/5 hover:border-blue-400/70 hover:bg-white/10'
         }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={handleClick}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="video/*"
-          onChange={handleFileInputChange}
-          className="hidden"
-        />
+        <input {...getInputProps()} />
         
-        {selectedFile ? (
-          <div className="space-y-2">
-            <div className="text-green-600">
-              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">{selectedFile.name}</p>
-              <p className="text-xs text-gray-500">{formatFileSize(selectedFile.size)}</p>
-            </div>
-            <p className="text-xs text-gray-500">Click to change file</p>
+        <div className="space-y-4">
+          <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-400 to-cyan-400 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+            </svg>
           </div>
-        ) : (
-          <div className="space-y-2">
-            <div className="text-gray-400">
-              <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">
-                Click to upload or drag and drop
-              </p>
-              <p className="text-xs text-gray-500">
-                MP4, AVI, MOV, or other video formats (max 100MB)
-              </p>
-            </div>
+          
+          <div>
+            <p className="text-lg font-medium text-blue-100">
+              {isDragActive ? 'Drop your video here' : 'Drag & drop your video here'}
+            </p>
+            <p className="text-blue-200/70 mt-2">
+              or click to browse files
+            </p>
+            <p className="text-sm text-blue-200/50 mt-2">
+              Supports MP4, MOV, AVI, MKV, WebM
+            </p>
           </div>
-        )}
-      </div>
-      
-      {selectedFile && (
-        <div className="mt-2 text-xs text-gray-500">
-          <p>File type: {selectedFile.type}</p>
-          <p>Last modified: {new Date(selectedFile.lastModified).toLocaleDateString()}</p>
         </div>
-      )}
+      </div>
     </div>
   );
 }; 

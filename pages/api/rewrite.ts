@@ -84,7 +84,7 @@ async function rewriteTranscript(originalText: string, audienceData: any): Promi
 
 Key adaptation principles:
 - Adjust vocabulary complexity based on education level
-- Modify content relevance based on interests
+- Modify content relevance based on interests (THIS IS CRITICAL)
 - Consider age-appropriate language and concepts
 - Maintain the original structure and flow
 - Keep the same length and pacing
@@ -92,11 +92,23 @@ Key adaptation principles:
 Current audience profile:
 - Age: ${audienceData.age || 'general'}
 - Education: ${audienceData.education || 'general'}
-- Interests: ${audienceData.interests || 'general'}
+- Interests: ${audienceData.interests || 'general'} (FOCUS ON THIS)
 - Technical Level: ${audienceData.technicalLevel || 'beginner'}
 - Language: ${audienceData.language || 'English'}
 
-Please rewrite the following transcript to better suit this audience:`;
+IMPORTANT: The audience has specific interests in "${audienceData.interests || 'general'}". You MUST incorporate this interest into your rewriting by:
+1. Using metaphors and analogies related to their interests
+2. Making connections between the content and their interests
+3. Using language and examples that resonate with their interests
+4. If it's a sport, use sports metaphors and terminology
+5. If it's a hobby, use hobby-related examples
+6. If it's academic, use academic examples they'd understand
+
+For example, if their interest is "Basketball", use basketball metaphors like "scoring goals", "teamwork", "practice makes perfect", etc.
+If their interest is "Science", use scientific analogies and examples.
+If their interest is "Music", use musical metaphors and terminology.
+
+Please rewrite the following transcript to better suit this audience, making sure to incorporate their specific interests:`;
 
     const userPrompt = `Original transcript:
 "${originalText}"
@@ -131,21 +143,208 @@ function createFallbackRewrite(originalText: string, audienceData: any): string 
   
   const { age, interests, technicalLevel } = audienceData;
   
-  // Check if this is for young kids with sports interests
+  // Check if this is for young kids with specific interests
   const isYoungKids = age && age.includes('5-12');
-  const isSportsInterested = interests && interests.toLowerCase().includes('sports');
   const isBeginner = technicalLevel === 'beginner';
   
-  if (isYoungKids && isSportsInterested && isBeginner) {
-    // Create a sports-themed, kid-friendly version
-    return createSportsKidVersion(originalText);
-  } else if (isYoungKids && isBeginner) {
-    // Create a simple, kid-friendly version
-    return createSimpleKidVersion(originalText);
+  // Check for specific interests
+  const interestLower = interests ? interests.toLowerCase() : '';
+  
+  if (isYoungKids && isBeginner) {
+    if (interestLower.includes('basketball')) {
+      return createBasketballKidVersion(originalText);
+    } else if (interestLower.includes('soccer') || interestLower.includes('football')) {
+      return createSoccerKidVersion(originalText);
+    } else if (interestLower.includes('sports')) {
+      return createSportsKidVersion(originalText);
+    } else if (interestLower.includes('science')) {
+      return createScienceKidVersion(originalText);
+    } else if (interestLower.includes('music')) {
+      return createMusicKidVersion(originalText);
+    } else {
+      return createSimpleKidVersion(originalText);
+    }
   } else {
     // Generic adaptation
     return createGenericAdaptation(originalText, audienceData);
   }
+}
+
+function createBasketballKidVersion(originalText: string): string {
+  console.log('Creating basketball-themed kid version...');
+  
+  // Basketball-specific metaphors and kid-friendly replacements
+  const replacements = {
+    // Tech concepts to basketball concepts
+    'copilot': 'your very own coach',
+    'AI': 'super smart teammate',
+    'possibilities': 'all the cool moves you can do',
+    'innovate': 'come up with new plays',
+    'accomplish': 'score',
+    'complex': 'tricky',
+    'tasks': 'plays',
+    'sort through': 'pick out the best plays from',
+    'noise': 'confusing plays',
+    'faster': 'quicker than a fast break',
+    'accurate': 'hits the shot every time',
+    'intuitive': 'easy to learn',
+    'customizable': 'you can make it your own style',
+    'simplifies': 'makes easier',
+    'amplify': 'make bigger and better',
+    'impact': 'difference you make on the court',
+    'UI': 'the way you talk to your coach',
+    'work': 'play basketball',
+    
+    // Basketball-specific metaphors
+    'new world': 'new basketball court',
+    'allowing you': 'helping you',
+    'co innovate': 'team up and create plays',
+    'accomplish complex tasks': 'score three-pointers',
+    'sort through the noise': 'find the winning shot',
+    'now copilot is': 'now your coach is',
+    'more accurate': 'hits the basket every time',
+    'more intuitive': 'like learning a new basketball move',
+    'and customizable': 'and you can make it your own play',
+    'copilot simplifies': 'your coach makes easier',
+    'tasks to amplify': 'plays to make bigger',
+    'your impact': 'your awesome basketball moves',
+    'copilot is the': 'your coach is the',
+    'UI for AI': 'way to talk to your smart coach',
+    'at work': 'when you play basketball'
+  };
+  
+  let rewrittenText = originalText;
+  
+  // Apply replacements
+  Object.entries(replacements).forEach(([original, replacement]) => {
+    const regex = new RegExp(original, 'gi');
+    rewrittenText = rewrittenText.replace(regex, replacement);
+  });
+  
+  // Add basketball enthusiasm
+  rewrittenText = rewrittenText
+    .replace(/\./g, '! ')
+    .replace(/!/g, '! 🏀 ')
+    .replace(/work\./g, 'awesome game! 🏀');
+  
+  // Ensure it ends with basketball enthusiasm
+  if (!rewrittenText.includes('!')) {
+    rewrittenText = rewrittenText.replace(/\.$/, '! 🏀');
+  }
+  
+  console.log('Basketball kid version created:', rewrittenText.substring(0, 100) + '...');
+  return rewrittenText;
+}
+
+function createSoccerKidVersion(originalText: string): string {
+  console.log('Creating soccer-themed kid version...');
+  
+  const replacements = {
+    'copilot': 'your very own coach',
+    'AI': 'super smart teammate',
+    'possibilities': 'all the cool moves you can do',
+    'innovate': 'come up with new plays',
+    'accomplish': 'score goals',
+    'complex': 'tricky',
+    'tasks': 'plays',
+    'sort through': 'pick out the best plays from',
+    'noise': 'confusing plays',
+    'faster': 'quicker than a counter-attack',
+    'accurate': 'hits the goal every time',
+    'intuitive': 'easy to learn',
+    'customizable': 'you can make it your own style',
+    'simplifies': 'makes easier',
+    'amplify': 'make bigger and better',
+    'impact': 'difference you make on the field',
+    'UI': 'the way you talk to your coach',
+    'work': 'play soccer'
+  };
+  
+  let rewrittenText = originalText;
+  
+  Object.entries(replacements).forEach(([original, replacement]) => {
+    const regex = new RegExp(original, 'gi');
+    rewrittenText = rewrittenText.replace(regex, replacement);
+  });
+  
+  rewrittenText = rewrittenText
+    .replace(/\./g, '! ')
+    .replace(/!/g, '! ⚽ ')
+    .replace(/work\./g, 'awesome game! ⚽');
+  
+  if (!rewrittenText.includes('!')) {
+    rewrittenText = rewrittenText.replace(/\.$/, '! ⚽');
+  }
+  
+  return rewrittenText;
+}
+
+function createScienceKidVersion(originalText: string): string {
+  console.log('Creating science-themed kid version...');
+  
+  const replacements = {
+    'copilot': 'your very own lab assistant',
+    'AI': 'super smart experiment helper',
+    'possibilities': 'all the cool experiments you can do',
+    'innovate': 'discover new things',
+    'accomplish': 'complete',
+    'complex': 'complicated',
+    'tasks': 'experiments',
+    'sort through': 'analyze',
+    'noise': 'confusing data',
+    'faster': 'quicker than a chemical reaction',
+    'accurate': 'precise',
+    'intuitive': 'easy to understand',
+    'customizable': 'you can adjust it',
+    'simplifies': 'makes easier',
+    'amplify': 'make bigger and better',
+    'impact': 'results you get',
+    'UI': 'the way you control your experiment',
+    'work': 'do science'
+  };
+  
+  let rewrittenText = originalText;
+  
+  Object.entries(replacements).forEach(([original, replacement]) => {
+    const regex = new RegExp(original, 'gi');
+    rewrittenText = rewrittenText.replace(regex, replacement);
+  });
+  
+  return rewrittenText;
+}
+
+function createMusicKidVersion(originalText: string): string {
+  console.log('Creating music-themed kid version...');
+  
+  const replacements = {
+    'copilot': 'your very own music teacher',
+    'AI': 'super smart music helper',
+    'possibilities': 'all the cool songs you can create',
+    'innovate': 'compose new music',
+    'accomplish': 'play',
+    'complex': 'difficult',
+    'tasks': 'songs',
+    'sort through': 'find the best notes in',
+    'noise': 'off-key sounds',
+    'faster': 'quicker than a fast tempo',
+    'accurate': 'plays the right notes',
+    'intuitive': 'easy to feel',
+    'customizable': 'you can make it your own style',
+    'simplifies': 'makes easier',
+    'amplify': 'make louder and better',
+    'impact': 'music you create',
+    'UI': 'the way you control your instrument',
+    'work': 'make music'
+  };
+  
+  let rewrittenText = originalText;
+  
+  Object.entries(replacements).forEach(([original, replacement]) => {
+    const regex = new RegExp(original, 'gi');
+    rewrittenText = rewrittenText.replace(regex, replacement);
+  });
+  
+  return rewrittenText;
 }
 
 function createSportsKidVersion(originalText: string): string {

@@ -4,6 +4,11 @@ import { join } from 'path';
 import ffmpeg from 'fluent-ffmpeg';
 import { createReadStream } from 'fs';
 
+// Configuration for background music feature
+const INCLUDE_BACKGROUND_MUSIC = true; // Toggle this to enable/disable background music
+const BACKGROUND_MUSIC_PATH = join(process.cwd(), 'assets', 'inspirational.mp3'); // User's uploaded inspirational music
+const DEMO_VIDEO_PATH = join(process.cwd(), 'assets', 'majoranaminecraft.mp4'); // Hardcoded demo video for visuals
+
 export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse
@@ -128,23 +133,60 @@ async function generateAdaptedVideo(
   
   try {
     // Check if files exist
-    await readFile(originalVideoPath);
     await readFile(audioPath);
+    await readFile(DEMO_VIDEO_PATH);
     
     console.log('Input files verified, starting FFmpeg processing...');
+    console.log('Using hardcoded demo video for visuals:', DEMO_VIDEO_PATH);
     
-    // Use FFmpeg to combine video with new audio
+    // Check if user wants background music and if file exists
+    let includeMusic = audienceData.includeBackgroundMusic || INCLUDE_BACKGROUND_MUSIC;
+    if (includeMusic) {
+      try {
+        await access(BACKGROUND_MUSIC_PATH);
+        console.log('User\'s inspirational music file found:', BACKGROUND_MUSIC_PATH);
+      } catch (error) {
+        console.log('Inspirational music file not found at:', BACKGROUND_MUSIC_PATH);
+        console.log('Please add your inspirational.mp3 file to the assets folder');
+        includeMusic = false;
+      }
+    } else {
+      console.log('Background music disabled by user preference');
+    }
+    
+    // Use FFmpeg to combine demo video with new audio and optional background music
     return new Promise((resolve, reject) => {
-      ffmpeg()
-        .input(originalVideoPath)
-        .input(audioPath)
+      const ffmpegCommand = ffmpeg()
+        .input(DEMO_VIDEO_PATH)  // Use hardcoded demo video for visuals
+        .input(audioPath);
+      
+      if (includeMusic) {
+        console.log('Adding user\'s inspirational background music to video...');
+        ffmpegCommand.input(BACKGROUND_MUSIC_PATH);
+      }
+      
+      ffmpegCommand
         .outputOptions([
           '-c:v copy',           // Copy video stream without re-encoding
           '-c:a aac',            // Use AAC codec for audio
           '-shortest',           // End when shortest input ends
-          '-map 0:v:0',          // Use video from first input
-          '-map 1:a:0'           // Use audio from second input
-        ])
+          '-map 0:v:0'           // Use video from first input (demo video)
+        ]);
+      
+      if (includeMusic) {
+        // Mix narration and background music with volume control
+        ffmpegCommand.outputOptions([
+          '-filter_complex', '[1:a]volume=1.0[narration];[2:a]volume=0.3[music];[narration][music]amix=inputs=2[a]',
+          '-map [a]'            // Use mixed audio
+        ]);
+      } else {
+        // Use only narration audio
+        ffmpegCommand.outputOptions([
+          '-map 1:a:0'           // Use audio from second input (narration)
+        ]);
+      }
+      
+      ffmpegCommand
         .output(outputPath)
         .on('start', (commandLine) => {
           console.log('FFmpeg command:', commandLine);
@@ -166,10 +208,10 @@ async function generateAdaptedVideo(
   } catch (error) {
     console.error('File access error:', error);
     
-    // Fallback: create a simple copy of the original video
-    console.log('Using fallback: copying original video');
-    const originalBuffer = await readFile(originalVideoPath);
-    await writeFile(outputPath, originalBuffer);
+    // Fallback: create a simple copy of the demo video
+    console.log('Using fallback: copying demo video');
+    const demoBuffer = await readFile(DEMO_VIDEO_PATH);
+    await writeFile(outputPath, demoBuffer);
     
     return outputPath;
   }
